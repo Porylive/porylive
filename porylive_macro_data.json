@@ -1,0 +1,88 @@
+{
+  "data/battle_anim_scripts.s": {
+    "createsprite": [
+      { "index": 0, "offset": 1, "type": "address" }
+    ],
+    "createvisualtask": [
+      { "index": 0, "offset": 1, "type": "address", "add": 1 }
+    ],
+    "call": [
+      { "index": 0, "offset": 1, "type": "offset" }
+    ],
+    "choosetwoturnanim": [
+      { "index": 0, "offset": 1, "type": "offset" },
+      { "index": 1, "offset": 4, "type": "offset" }
+    ],
+    "jumpifmoveturn": [
+      { "index": 1, "offset": 2, "type": "offset" }
+    ],
+    "goto": [
+      { "index": 0, "offset": 1, "type": "offset" }
+    ],
+    "createsoundtask": [
+      { "index": 0, "offset": 1, "type": "address" }
+    ],
+    "jumpargeq": [
+      { "index": 2, "offset": 4, "type": "offset" }
+    ],
+    "jumpifcontest": [
+      { "index": 0, "offset": 1, "type": "offset" }
+    ],
+    "createvisualtaskontargets": [
+      { "index": 0, "offset": 1, "type": "address" }
+    ],
+    "createspriteontargets_onpos": [
+      { "index": 0, "offset": 1, "type": "address" }
+    ],
+    "jumpifmovetypeequal": [
+      { "index": 1, "offset": 1, "type": "offset" }
+    ],
+    "jumpreteq": [
+      { "index": 1, "offset": 4, "type": "offset" }
+    ],
+    "jumprettrue": [
+      { "index": 0, "offset": 4, "type": "offset" }
+    ],
+    "jumpretfalse": [
+      { "index": 0, "offset": 4, "type": "offset" }
+    ],
+    "jumpifdoublebattle": [
+      { "type": "macro", "name": "createvisualtask", "params": ["AnimTask_IsDoubleBattle", 0] },
+      { "index": 0, "offset": 11, "type": "offset" }
+    ]
+  },
+  "data/event_scripts.s": {
+    "call": [
+      { "index": 0, "offset": 1, "type": "dynamic" }
+    ],
+    "goto": [
+      { "index": 0, "offset": 1, "type": "dynamic" }
+    ],
+    "goto_if": [
+      { "index": 0, "offset": 2, "type": "dynamic" }
+    ],
+    "call_if": [
+      { "index": 0, "offset": 2, "type": "dynamic" }
+    ],
+    "message": [
+      { "index": 0, "offset": 1, "type": "dynamic" }
+    ],
+    "msgbox": [
+      { "index": 0, "offset": 2, "type": "dynamic" }
+    ],
+    "givemon": [
+      { "name": "ScrCmd_createmon", "offset": 1, "type": "address", "add": 33554433 }
+    ],
+    "goto_if_eq": {
+      "condition": "num_args",
+      "if": {
+        "1,2": [
+          { "index": 0, "offset": 2, "type": "dynamic" }
+        ],
+        "3": [
+          { "index": 2, "offset": 7, "type": "dynamic" }
+        ]
+      }
+    }
+  }
+}
