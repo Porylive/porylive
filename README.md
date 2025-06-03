@@ -10,25 +10,51 @@ Porylive is a live script editing system for pokeemerald-expansion that allows y
 In addition to the base pokeemerald-expansion project dependencies, you'll need:
 
 - **[Watchman](https://facebook.github.io/watchman/docs/install.html)**: File watching service
-  - **macOS**: `brew install watchman`
-  - **Ubuntu/Debian**: `sudo apt-get install watchman`
-  - **Windows**: Download from [Watchman releases](https://github.com/facebook/watchman/releases/latest)
+    - **macOS**: `brew install watchman`
+    - **Linux/Windows (WSL)**: [see instructions under Linux](https://facebook.github.io/watchman/docs/install.html#linux)
+        - For Windows, you must install watchman on your WSL/WSL2 system.
 - **[mGBA](https://mgba.io/)**: Emulator
-  - The latest version (0.10.5) does not work with Porylive. Use a nightly build or wait for the next 0.11.x stable release.
-- **Porylive git remote**:
-  - While this repository's files will reside in `tools/poryscript`, code changes need to be pulled from a Porylive feature branch based on your base repository:
-    - **pokeemerald-expansion**: https://github.com/Porylive/pokeemerald-expansion-porylive
-  - To merge the changes into your repository:
-    - Run `git remote add porylive <porylive-repo-url>`, with the url being the one matching your base repository
-    - Pull changes with `git pull porylive main` to pull the changes into your currently checked out branch
+    - The latest version (0.10.5) does not work with Porylive. Use a nightly build or wait for until 0.11.x stable release.
+- **Network Requirements**:
+    - Port 1370 must be available for Porylive to communicate with your game running in mGBA
+    - If using WSL2, see the [Troubleshooting](#troubleshooting) section for port forwarding instructions
 
-## Supported Files
+## Supported Script Files
 
 ### Fully Supported
 - `data/battle_anim_scripts.s` - Battle animation scripts
 
 ### Partially Supported
-- `data/scripts/*.inc` - Individual event scripts included in `data/event_scripts.s`
+_Note: Support is based on whether a macro that requires an address has been added to `porylive_macro_data.json`._
+- `data/scripts/*.inc` - Individual event scripts included in `data/event_scripts.s`.
+
+## Initial Setup
+
+Before you can use Porylive, you need to:
+
+1. **Install Dependencies**:
+    - Install Watchman (see [Dependencies](#dependencies) above)
+    - Install mGBA (nightly build recommended until 0.11.x stable release)
+    - Ensure port 1370 is available
+
+2. **Add Porylive Scripts**:
+    - Create a `tools/porylive` directory in your repository
+    - Download the contents of this repository and place them in `tools/porylive`
+
+3. **Add Base Repository Support**:
+    - Porylive requires code changes to be pulled from a repository based on the decomp base you are using. Currently supported decomps:
+        - **pokeemerald-expansion**: https://github.com/Porylive/pokeemerald-expansion-porylive
+        - _More repositories will be added as they are tested and supported_
+
+    ```bash
+    # Add the Porylive remote (use the URL matching your base repository)
+    git remote add porylive https://github.com/Porylive/pokeemerald-expansion-porylive
+
+    # Pull the base repository changes into your current branch
+    git pull porylive main
+    ```
+
+Once these steps are complete, you can proceed to the [Quick Start](#quick-start) guide.
 
 ## Quick Start
 
@@ -48,11 +74,11 @@ This command will:
 
 1. **Open mGBA** and load the compiled `pokeemerald.gba` ROM
 2. **Open Scripting Window**:
-   - Go to `Tools` → `Scripting...`
+    - Go to `Tools` → `Scripting...`
 3. **Load Porylive Script**:
-   - Click `File` → `Load script...`
-   - Navigate to `tools/porylive/porylive.lua`
-   - Select and open the file
+    - Click `File` → `Load script...`
+    - Navigate to `tools/porylive/porylive.lua`
+    - Select and open the file
 
 You should see Porylive initialization messages in the mGBA console.
 
@@ -61,16 +87,16 @@ You should see Porylive initialization messages in the mGBA console.
 1. **Edit a supported file** (e.g., `data/battle_anim_scripts.s` or any `.inc` file in `data/scripts/`)
 2. **Save the file**
 3. **Watch the magic happen**:
-   - Porylive detects the change
-   - Processes the updated scripts
-   - Injects changes into mGBA memory
-   - Scripts are immediately available in-game
+    - Porylive detects the change
+    - Processes the updated scripts
+    - Injects changes into mGBA memory
+    - Scripts are immediately available in-game
 
-_Tip: Avoiding saving changes to a script while a script is currently running in-game. Doing so could risk hsving your game crash_
+_Tip: Avoiding saving changes to a script while a script is currently running in-game. Doing so will likely make your game crash._
 
 ### 4. Stop Monitoring
 
-Press `Ctrl+C` in the terminal where `make live` is running to stop file monitoring and clean up.
+Press `Ctrl+C` in the terminal where `make live` is running to stop file monitoring and perform a cleanup.
 
 ## How It Works
 
@@ -85,32 +111,39 @@ Press `Ctrl+C` in the terminal where `make live` is running to stop file monitor
 ### "Connection refused" Error
 - Make sure mGBA is running with the Porylive Lua script loaded
 - Verify the script is active in mGBA's Scripting window
-  - You can test this by typing `reload()` in the input field and pressing enter
+    - You can test this by typing `reload()` in the input field and pressing enter
+- Ensure port 1370 is open and accessible
+    - If using WSL2 on Windows, you'll need to forward port 1370 to your Windows host:
+        ```bash
+        # In PowerShell (as Administrator)
+        netsh interface portproxy add v4tov4 listenport=1370 listenaddress=0.0.0.0 connectport=1370 connectaddress=<WSL2_IP>
+        ```
+        Replace `<WSL2_IP>` with your WSL2 instance's IP address (find it using `ip addr show eth0` in WSL2)
 
 ### "File not supported" Message
-- Ensure you're editing files in the supported list
-- Check that the file path matches exactly (case-sensitive)
+- Ensure you're editing files in the [supported list](#supported-script-files)
 
 ### Scripts Not Updating
 - Verify the ROM was built with `make live`
-- Check that Watchman is running: `watchman version`
+    - You can also verify this by searching the `pokeemerald.map` file in the build directory for `gPoryLiveScriptBuffer`
+- Check that Watchman is installed and running: `watchman version`
 - Look for error messages in the terminal output
 
 ### Build Errors
 - Ensure all base pokeemerald dependencies are installed
+- Check your own code for errors
 - Try `make clean` followed by `make live` again
 
 ### Game Crashing
-- If the game crashes while running a script:
-  - Try recompiling the ROM without Porylive enabled using `make` to see if the issue persists.
-  - If the game still crashes, it's likely a macro with an address dependency has not yet been added to `porylive_macro_data.json`. See the [Contributing](#contributing) section for more information.
-  - If the game does not crash, it's likely a problem with your script, not Porylive.
+- If the game crashes while running a script, try recompiling the ROM without Porylive enabled using `make` to see if the issue persists.
+    - If the game still crashes, it's likely a problem with your script, not Porylive.
+    - If the game does not crash, it's likely that a macro with an address dependency has not yet been added to `porylive_macro_data.json`. See the [Contributing](#contributing) section for more information.
 
 ## Advanced Usage
 
 ### Cleaning Up
 ```bash
-# Removes only built script files, recommended to run before `make live`
+# Removes only built script files, automatically run before `make live`
 make tidylive
 
 # Cleans the entire build/modern-porylive directory
@@ -119,34 +152,34 @@ make clean-live
 
 ### Macro Configuration
 
-Porylive uses `porylive_macro_data.json` to understand how to handle script macros that reference addresses. If you've created custom macros or encounter address resolution issues, you may need to add entries to this file.
+Porylive uses `porylive_macro_data.json` to understand how to handle script macros that reference addresses. If you've created custom macros, you may need to add entries to this file.
 
 ## Contributing
 
 ### Adding Macro Support
 
-If you're game is crashing while running a script, a macro has likely not yet been added to `porylive_macro_data.json`.
+If your game is crashing while running a script, a macro has likely not yet been added to `porylive_macro_data.json`.
 
 #### Before submitting an issue:
-- **Build a regular rom** using `make`
+- Build a regular rom _without Porylive enabled_ using `make`
 - If the game still crashes, it's mostly likely a problem with your script, not Porylive.
-- If the game does not crash, it's likely a macro with an address dependency has not yet been added to `porylive_macro_data.json`.
-  - Feel free to submit an issue with the script that crashes only with Porylive enabled.
+- If the game does not crash, it's likely that a macro with an address dependency has not yet been added to `porylive_macro_data.json`.
+    - Please submit an issue that includes the script that only crashes while Porylive is enabled.
 
 #### Steps to add a macro:
-1. **Identify the macro** and which command accepts an address (should always be a `.4byte` command)
-  - A macro that does not require an address does not need to be added.
-1. **Add an entry** to `tools/porylive/porylive_macro_data.json` under the correct file name
-1. **Specify the parameter handling**:
-   - `"type": "dynamic"` - Auto-detect based on content _(you can usually try this one first)_
-     - If the macro invokes another macro, you can also manually figure out the offset by counting the number of bytes.
-   - `"type": "address"` - Always uses a direct address from pokeemerald.map
-   - `"type": "macro"` - The macro invokes another macro which uses an address. Use this only if a param is not passed to the nested macro.
-1. **Specify the params** for the macro.
-   - `"index"` - The argument index in the macro
-     - For example, `ptr2` is index 1 for `.macro choosetwoturnanim ptr1:req, ptr2:req`
-   - `"offset"` - The offset of the param in the macro
-     - For example, `ptr2` is offset 5 for `choosetwoturnanim` because a `.byte` and `.4byte` preceed it.
+1. **Identify the macro** that requires an address (should always be a `.4byte`)
+    - A macro that does not require an address does not need to be added.
+2. **Add an entry** to `tools/porylive/porylive_macro_data.json` under the correct file name
+3. **Specify the parameter handling**:
+    - `"type": "dynamic"` - Auto-detect based on content _(you can usually try this one first)_
+        - If the macro invokes another macro, you can also manually figure out the offset by counting the number of bytes.
+    - `"type": "address"` - Always uses a direct address from pokeemerald.map
+    - `"type": "macro"` - The macro invokes another macro which uses an address. Use this only if a param is not passed to the nested macro.
+4. **Specify the params** for the macro.
+    - `"index"` - The argument index in the macro
+        - For example, `ptr2` is index 1 for `.macro choosetwoturnanim ptr1:req, ptr2:req`
+    - `"offset"` - The offset of the param in the macro
+        - For example, `ptr2` is offset 5 for `choosetwoturnanim` because a `.byte` and `.4byte` preceed it.
 
 Example macro and entry:
 ```asm
@@ -168,7 +201,7 @@ Example macro and entry:
 - **Beta software**: May have bugs or unexpected behavior
 - **Limited support**: Only certain script files and macros are supported
 - **Memory constraints**: Using porylive for too long without rebuilding the ROM may exceed buffer limits
-  - Limit of **1kb of script data** and **200 individual scripts**
+    - Limit of **1kb of script data** and **200 individual scripts**
 
 ## Support
 
