@@ -13,7 +13,8 @@ local LISTEN_PORT = 1370
 
 -- Use mGBA's script.dir to determine paths
 -- Remove the last two directory components (tools/porylive) to get project root
-local data_build_dir
+local build_dir
+local bin_data_dir
 local generated_files_path
 local project_root = script.dir:match("(.*)/[^/]+/[^/]+/?$") or script.dir:match("(.*)[/\\][^/\\]+[/\\][^/\\]+[/\\]?$")
 if not project_root then
@@ -21,18 +22,25 @@ if not project_root then
 else
   project_root = project_root .. "/"
 end
-data_build_dir = project_root .. "build/modern-porylive/bin/data"
-generated_files_path = project_root .. "build/modern-porylive/porylive_generated_files.lua"
 
 local status, result = pcall(function()
-  return dofile(project_root .. "build/modern-porylive/addresses.lua")
+  return dofile(project_root .. "build/porylive_config.lua")
+end)
+if status and type(result) == "table" then
+  build_dir = result.current_build_dir
+end
+bin_data_dir = build_dir .. "/bin/data"
+generated_files_path = build_dir .. "/porylive_generated_files.lua"
+
+local status, result = pcall(function()
+  return dofile(build_dir .. "/addresses.lua")
 end)
 if status and type(result) == "table" then
   SCRIPT_INITIALIZED = result.gPoryLiveScriptInitialized
   SCRIPT_OVERRIDES = result.gPoryLiveOverrides
   SCRIPT_BUFFER = result.gPoryLiveScriptBuffer
 else
-  console:error("[-] Failed to load Porylive utility addresses. Please run `make porylive` to generate the addresses.lua file.")
+  console:error("[-] Failed to load Porylive utility addresses. Please run `make live` to generate the addresses.lua file.")
   return
 end
 
@@ -99,7 +107,7 @@ function reload()
   end
 
   -- Find all .bin files in the data build directory
-  local bin_files = find_bin_files(data_build_dir)
+  local bin_files = find_bin_files(bin_data_dir)
 
   console:log("[+] Loading " .. #bin_files .. " script overrides")
 
@@ -381,10 +389,10 @@ function init_socket_server()
 end
 
 console:log("======== Porylive initialized ========")
-console:log("Make sure to run `make porylive` in your pokeemerald-expansion project to start live script editing.\n")
+console:log("Make sure to run `make live` in your decomp project to start live script editing.\n")
 
 if emu == nil then
-  console:log("[-] Please load your pokeemerald.gba ROM to being using Porylive")
+  console:log("[-] Please load your GBA ROM to before using Porylive")
 else
   reload()
 end

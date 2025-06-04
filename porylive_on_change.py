@@ -29,10 +29,11 @@ PROFILING = False
 
 # Get the directory containing this script
 SCRIPT_DIR = Path(__file__).parent
-BUILD_DIR = SCRIPT_DIR.parent.parent / "build/modern-porylive"
+PROJECT_DIR = SCRIPT_DIR.parent.parent
+
+CONFIG_FILE = PROJECT_DIR / "build" / "porylive_config.lua"
 
 # Define paths relative to the script directory
-MAP_FILE = SCRIPT_DIR.parent.parent / "pokeemerald.map"
 MACRO_DATA_FILE = SCRIPT_DIR / "porylive_macro_data.json"
 
 # List of supported files
@@ -97,6 +98,21 @@ def load_macro_data():
         with open(MACRO_DATA_FILE, "r") as f:
             macro_data_cache = json.load(f)
     return macro_data_cache
+
+def load_porylive_config():
+    """Load porylive_config.lua from the build directory"""
+    with open(CONFIG_FILE, "r") as f:
+        content = f.read()
+        # Extract the current_build_dir value from the Lua file
+        # Look for the pattern: current_build_dir = 'path'
+        import re
+        match = re.search(r"current_build_dir\s*=\s*['\"]([^'\"]+)['\"]", content)
+        if match:
+            global BUILD_DIR
+            BUILD_DIR = PROJECT_DIR / match.group(1)
+            return BUILD_DIR
+        else:
+            raise ValueError("Could not find current_build_dir in porylive_config.lua")
 
 def get_macros_to_adjust(src_file: str) -> Dict:
     """Get macro adjustment data for a specific file"""
@@ -593,7 +609,7 @@ def main():
     log_profiling("Starting main function")
     
     # Skip initial watchman trigger
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 3:
         return
 
     # Write arguments to watchman.log
@@ -602,11 +618,20 @@ def main():
         _args.append(f"  argv[{i}]: {arg}")
     log_message(*_args)
 
-    if len(sys.argv) > 1:
-        updated_file = sys.argv[1]
+    if len(sys.argv) < 2:
+        log_message("Error: Map file name must be provided as first argument")
+        sys.exit(1)
+
+    global MAP_FILE
+    MAP_FILE = PROJECT_DIR / sys.argv[1]
+
+    if len(sys.argv) > 2:
+        updated_file = sys.argv[2]
     else:
         updated_file = None
-    
+
+    load_porylive_config()
+
     # Determine which supported file to process
     selected_file = None
     if updated_file:
@@ -627,7 +652,7 @@ def main():
 
     # Exit early if build/modern-porylive directory doesn't exist or is empty
     if not (BUILD_DIR).exists() or not (BUILD_DIR).iterdir():
-        log_message("build/modern-porylive directory does not exist or is empty - run make live first")
+        log_message(f"{BUILD_DIR} directory does not exist or is empty - run make live first")
         return
     
     send_notification("PROCESSING")
@@ -640,7 +665,10 @@ def main():
 
     # Path(SRC_LST).unlink(missing_ok=True)
     make_start = time.perf_counter()
-    subprocess.run(["make", "live-update"], check=True)
+    env = os.environ.copy()
+    if "modern" in str(BUILD_DIR):
+        env["MODERN"] = "1"
+    subprocess.run(["make", "live-update"], check=True, env=env)
     make_end = time.perf_counter()
     log_profiling(f"make live-update took {make_end - make_start:.4f}s")
 
