@@ -1,0 +1,88 @@
+---
+name: Script Crash Report
+description: Report a script that crashes when using Porylive
+title: "[SCRIPT CRASH] "
+labels: ["bug", "script-crash"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this script crash! Please fill out the form below to help with debugging the issue.
+        
+        Note: If the script also crashes with regular `make`, it is likely not an issue with Porylive. Please make sure to test without Porylive enabled before submitting an issue.
+
+  - type: dropdown
+    id: script-location
+    attributes:
+      label: Script Location
+      description: Where is the script that crashes located?
+      options:
+        - In `data/battle_anim_scripts.s`
+        - In `data/event_scripts.s`
+        - A `.inc` file in `data/scripts/`
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: crash-verification
+    attributes:
+      label: Crash Verification
+      description: Please confirm you've tested the script without Porylive
+      options:
+        - label: I have tested this script with a regular build (`make`) and it runs without crashing
+          required: true
+        - label: The script only crashes when using Porylive (`make live`)
+          required: true
+
+  - type: textarea
+    id: script-content
+    attributes:
+      label: Script Content
+      description: Please paste the script that crashes below
+      placeholder: |
+        ExampleScript::
+          special UseBlankMessageToCancelPokemonPic
+          release
+          end
+      render: asm
+    validations:
+      required: true
+
+  - type: textarea
+    id: crash-context
+    attributes:
+      label: Additional Context
+      description: Please provide any additional information about the crash
+      placeholder: |
+        - When does the crash occur? (e.g., "When the battle animation starts", "Just before the message is displayed")
+        - What were you trying to accomplish with the script?
+        - Any error messages in the mGBA console?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mgba-version
+    attributes:
+      label: mGBA Version
+      description: What version of mGBA are you using?
+      options:
+        - Nightly build (specify the commit hash in Additional Context)
+        - 0.10.5
+        - 0.10.4
+        - 0.10.3
+        - Other (please specify in Additional Context)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - macOS
+        - Windows (WSL/WSL2)
+        - Linux
+        - Other (please specify in Additional Context)
+    validations:
+      required: false
