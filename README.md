@@ -3,11 +3,11 @@
 **⚠️ Beta Software**: Porylive is currently in beta. While functional, you may encounter bugs or limitations.
 - If the game crashes while running a script, it's likely a macro has not yet been added to `porylive_macro_data.json`. See the [Contributing](#contributing) section for more information.
 
-Porylive is a live script editing system for pokeemerald-expansion that allows you to modify battle animation scripts and event scripts in real-time without rebuilding the entire ROM. When you save changes to supported script files, Porylive automatically processes and injects the updated scripts directly into the game's memory while running in mGBA.
+Porylive is a live script editing system for the GBA Pokemon decomps that allows you to modify battle animation scripts and event scripts in real-time without rebuilding the entire ROM. When you save changes to supported script files, Porylive automatically processes and injects the updated scripts directly into the game's memory while running in mGBA.
 
 ## Dependencies
 
-In addition to the base pokeemerald-expansion project dependencies, you'll need:
+In addition to your base decomp project's dependencies, you'll need:
 
 - **[Watchman](https://facebook.github.io/watchman/docs/install.html)**: File watching service
     - **macOS**: `brew install watchman`
@@ -44,6 +44,7 @@ Before you can use Porylive, you need to:
 3. **Add Base Repository Support**:
     - Porylive requires code changes to be pulled from a repository based on the decomp base you are using. Currently supported decomps:
         - **pokeemerald-expansion**: https://github.com/Porylive/pokeemerald-expansion-porylive
+        - **pokeemerald**: https://github.com/Porylive/pokeemerald-porylive
         - _More repositories will be added as they are tested and supported_
 
     ```bash
@@ -62,6 +63,11 @@ Once these steps are complete, you can proceed to the [Quick Start](#quick-start
 
 ```bash
 make live -j$(nproc)
+```
+
+If you are not using `pokeemerald-expansion` and want to use `modern`, you can use the following command:
+```bash
+MODERN=1 make live -j$(nproc)
 ```
 
 This command will:
