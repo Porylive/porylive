@@ -27,7 +27,7 @@ local status, result = pcall(function()
   return dofile(project_root .. "build/porylive_config.lua")
 end)
 if status and type(result) == "table" then
-  build_dir = result.current_build_dir
+  build_dir = project_root .. result.current_build_dir
 end
 bin_data_dir = build_dir .. "/bin/data"
 generated_files_path = build_dir .. "/porylive_generated_files.lua"
