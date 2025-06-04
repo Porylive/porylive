@@ -668,7 +668,21 @@ def main():
     env = os.environ.copy()
     if "modern" in str(BUILD_DIR):
         env["MODERN"] = "1"
-    subprocess.run(["make", "live-update"], check=True, env=env)
+    try:
+        result = subprocess.run(["make", "live-update"], check=True, capture_output=True, env=env)
+        if result.stderr:
+            # Convert result.stderr from bytes to string
+            error_message = result.stderr.decode('utf-8').strip().split('\n')
+            error_message.insert(0, "Error while assembling scripts:")
+            log_message(*error_message)
+            sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        log_message(f"make live-update failed with return code {e.returncode}")
+        if e.stdout:
+            log_message(f"stdout: {e.stdout}")
+        if e.stderr:
+            log_message(f"stderr: {e.stderr}")
+        sys.exit(1)
     make_end = time.perf_counter()
     log_profiling(f"make live-update took {make_end - make_start:.4f}s")
 
