@@ -604,12 +604,23 @@ def send_notification(message: str):
     except Exception as e:
         log_message(f"Failed to send notification to porylive.lua: {e}")
 
+def find_most_recent_map_file() -> Path:
+    """Find the most recently modified .map file in the project directory"""
+    map_files = list(PROJECT_DIR.glob("**/*.map"))
+    if not map_files:
+        log_message("Error: No .map files found in project directory")
+        sys.exit(1)
+    # Sort by modification time, most recent first
+    most_recent = max(map_files, key=lambda p: p.stat().st_mtime)
+    log_message(f"Using map file: {most_recent}")
+    return most_recent
+
 def main():
     main_start = time.perf_counter()
     log_profiling("Starting main function")
     
     # Skip initial watchman trigger
-    if len(sys.argv) > 3:
+    if len(sys.argv) > 2:
         return
 
     # Write arguments to watchman.log
@@ -618,15 +629,11 @@ def main():
         _args.append(f"  argv[{i}]: {arg}")
     log_message(*_args)
 
-    if len(sys.argv) < 2:
-        log_message("Error: Map file name must be provided as first argument")
-        sys.exit(1)
-
     global MAP_FILE
-    MAP_FILE = PROJECT_DIR / sys.argv[1]
+    MAP_FILE = find_most_recent_map_file()
 
-    if len(sys.argv) > 2:
-        updated_file = sys.argv[2]
+    if len(sys.argv) > 1:
+        updated_file = sys.argv[1]
     else:
         updated_file = None
 
