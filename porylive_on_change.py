@@ -126,6 +126,10 @@ def adjust_data_from_macro(routines: Dict[str, RoutineData], script: ScriptParam
             _name = info["name"]
         else:
             _name = script["params"][info["index"]]
+        # Do not process if _name is a hex number (e.g. 0x8000000)
+        if _name.startswith("0x"):
+            return script["data"], []
+
         address = get_map_file_address(_name)
         if address is not None:
             if "add" in info:
@@ -144,11 +148,16 @@ def adjust_data_from_macro(routines: Dict[str, RoutineData], script: ScriptParam
             sys.exit(1)
 
     def adjust_by_offset(script: ScriptParams, info: Dict[str, any]):
+        _name = script["params"][info["index"]]
+        # Do not process if _name is a hex number (e.g. 0x8000000)
+        if _name.startswith("0x"):
+            return script["data"], []
+
         found = False
         for label, routine in routines.items():
             if routine["child_labels"]:
                 for child_label in routine["child_labels"]:
-                    if child_label["name"] == script["params"][info["index"]]:
+                    if child_label["name"] == _name:
                         if child_label["name"] in new_script_labels:
                             # Needs to be adjusted in Lua
                             lua_adjustments.append({
