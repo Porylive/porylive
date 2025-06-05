@@ -45,6 +45,7 @@ Before you can use Porylive, you need to:
     - Porylive requires code changes to be pulled from a repository based on the decomp base you are using. Currently supported decomps:
         - **pokeemerald-expansion**: https://github.com/Porylive/pokeemerald-expansion-porylive
         - **pokeemerald**: https://github.com/Porylive/pokeemerald-porylive
+        - **pokefirered**: https://github.com/Porylive/pokefirered-porylive
         - _More repositories will be added as they are tested and supported_
 
     ```bash
@@ -140,6 +141,9 @@ Press `Ctrl+C` in the terminal where `make live` is running to stop file monitor
 - Check your own code for errors
 - Try `make clean` followed by `make live` again
 
+#### Error: section 'ewram' is not within the region 'EWRAM'
+- Your game is using too much EWRAM. Try decreasing `PORYLIVE_MAX_SCRIPTS` in `include/porylive.h` to a lower number.
+
 ### Game Crashing
 - If the game crashes while running a script, try recompiling the ROM without Porylive enabled using `make` to see if the issue persists.
     - If the game still crashes, it's likely a problem with your script, not Porylive.
@@ -208,6 +212,7 @@ Example macro and entry:
 - **Limited support**: Only certain script files and macros are supported
 - **Memory constraints**: Using porylive for too long without rebuilding the ROM may exceed buffer limits
     - Limit of **1kb of script data** and **200 individual scripts**
+    - `pokefirered` has a limit of **100 individual scripts** due to higher default EWRAM usage. If you have cleared out some EWRAM (like removing the help menu), you can increase the limit back to the default 200.
 
 ## Support
 
