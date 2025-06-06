@@ -27,7 +27,7 @@ In addition to your base decomp project's dependencies, you'll need:
 ### Partially Supported
 _Note: Support is based on whether a macro that requires an address has been added to `porylive_macro_data.json`._
 - `data/scripts/*.inc` - Individual event scripts included in `data/event_scripts.s`.
-
+- `data/maps/*/scripts.inc` - Map event scripts, also included in `data/event_scripts.s`.
 ## Initial Setup
 
 Before you can use Porylive, you need to:
