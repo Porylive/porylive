@@ -624,6 +624,33 @@ def find_most_recent_map_file() -> Path:
     log_message(f"Using map file: {most_recent}")
     return most_recent
 
+def try_process_poryscript_file(pory_file_path: Path):
+    """Attempt to invoke tools/poryscript to process a .pory file"""
+    filename = pory_file_path.name
+    try:
+        log_message(f"Processing pory file: {filename}")
+        result = subprocess.run(
+            [
+                "tools/poryscript/poryscript",
+                "-cc", "tools/poryscript/command_config.json",
+                "-fc", "tools/poryscript/font_config.json",
+                "-i", pory_file_path,
+                "-o", pory_file_path.with_suffix(".inc"),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        if result.stderr:
+            error_message = result.stderr.decode('utf-8').strip().split('\n')
+            error_message.insert(0, f"Error while processing {pory_file_path}:")
+            log_message(*error_message)
+            sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        error_message = e.stderr.decode('utf-8').strip().split('\n')
+        error_message.insert(0, f"Error while processing {pory_file_path}:")
+        log_message(*error_message)
+        sys.exit(1)
+
 def main():
     main_start = time.perf_counter()
     log_profiling("Starting main function")
@@ -638,15 +665,20 @@ def main():
         _args.append(f"  argv[{i}]: {arg}")
     log_message(*_args)
 
-    global MAP_FILE
-    MAP_FILE = find_most_recent_map_file()
-
     if len(sys.argv) > 1:
         updated_file = sys.argv[1]
     else:
         updated_file = None
 
     load_porylive_config()
+
+    # If the file ends with .pory, try to process it with poryscript
+    if updated_file and updated_file.endswith('.pory'):
+        try_process_poryscript_file(PROJECT_DIR / updated_file)
+        return
+
+    global MAP_FILE
+    MAP_FILE = find_most_recent_map_file()
 
     # Determine which supported file to process
     selected_file = None
