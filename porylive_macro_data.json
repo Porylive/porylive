@@ -74,8 +74,8 @@
       { "name": "ScrCmd_createmon", "offset": 1, "type": "address", "add": 33554433 }
     ],
     "goto_if_eq": {
-      "condition": "num_args",
-      "if": {
+      "$condition": "num_args",
+      "$matches": {
         "1,2": [
           { "index": 0, "offset": 2, "type": "dynamic" }
         ],
