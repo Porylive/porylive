@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple, Any
 from .logger import Logger
 from .config import ConfigManager
 from .map_file import MapFileManager
+from .conditional_processor import ConditionalProcessor
 from .porylive_types import ScriptParams, RoutineData, LuaAdjustment
 
 class MacroProcessor:
@@ -13,6 +14,7 @@ class MacroProcessor:
         self.logger = logger
         self.config_manager = config_manager
         self.map_file_manager = map_file_manager
+        self.conditional_processor = ConditionalProcessor(logger)
 
     def adjust_data_from_macro(self, routines: Dict[str, RoutineData], script: ScriptParams,
                                src_file: str, new_script_labels: set, new_script_globals: set) -> Tuple[bytearray, List[LuaAdjustment]]:
@@ -79,67 +81,6 @@ class MacroProcessor:
                 self.logger.log_message(f"[offset] Unknown symbol for {script['name']}: {script['params'][info['index']]}")
                 sys.exit(1)
 
-        def handle_condition(script: ScriptParams, macro_info: Dict[str, Any]) -> List[Dict[str, Any]]:
-            """Handle conditional macro adjustments based on conditions like num_args or arg[n]"""
-            condition_type = macro_info.get("$condition")
-            matches = macro_info.get("$matches", {})
-
-            if not condition_type:
-                return []
-
-            if condition_type == "num_args":
-                num_params = len(script["params"])
-
-                # Find matching condition
-                for condition_key, adjustments in matches.items():
-                    if condition_key == "$else":
-                        continue  # Handle $else separately
-
-                    # Handle single number or comma-separated numbers
-                    if "," in condition_key:
-                        valid_counts = [int(x.strip()) for x in condition_key.split(",")]
-                    else:
-                        try:
-                            valid_counts = [int(condition_key)]
-                        except ValueError:
-                            continue  # Skip non-numeric keys
-
-                    if num_params in valid_counts:
-                        return adjustments
-
-            elif re.match(r'^arg\[\d+\]$', condition_type):
-                # Handle arg[n] conditions - check the value of argument at index n
-                # Extract the argument index from condition_type (e.g., "arg[0]" -> 0)
-                try:
-                    arg_index = int(condition_type[4:-1])  # Remove "arg[" and "]"
-                except (ValueError, IndexError):
-                    self.logger.log_message(f"[handle_condition] Invalid arg condition format: {condition_type}")
-                    return []
-
-                # Check if the argument index is valid
-                if arg_index >= len(script["params"]):
-                    self.logger.log_message(f"[handle_condition] Argument index {arg_index} out of range for {script['name']}")
-                    return []
-
-                # Get the actual argument value
-                arg_value = script["params"][arg_index]
-
-                # Find matching condition
-                for condition_key, adjustments in matches.items():
-                    if condition_key == "$else":
-                        continue  # Handle $else separately
-
-                    # Check if the argument value matches this condition
-                    if arg_value == condition_key:
-                        return adjustments
-
-                # If no condition matched, check for $else
-                if "$else" in matches:
-                    return matches["$else"]
-
-            # Return empty list if no condition matches
-            return []
-
         macros_to_adjust = self.config_manager.get_macros_to_adjust(src_file)
         macro_info = macros_to_adjust.get(script["name"])
         lua_adjustments: List[LuaAdjustment] = []
@@ -148,9 +89,9 @@ class MacroProcessor:
             return script["data"], []
 
         # Determine which adjustments to apply
-        if isinstance(macro_info, dict) and "$condition" in macro_info:
-            # Handle conditional macros (when macro_info is a dict with $condition)
-            adjustments = handle_condition(script, macro_info)
+        if isinstance(macro_info, dict) and ("$condition" in macro_info or "$if" in macro_info):
+            # Handle conditional macros
+            adjustments = self.conditional_processor.process_conditional_macro(script, macro_info)
         elif isinstance(macro_info, list):
             # Handle non-conditional macros (when macro_info is a list)
             adjustments = macro_info
