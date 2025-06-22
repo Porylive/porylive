@@ -11,37 +11,49 @@ local sockets = {}
 local nextID = 1
 local LISTEN_PORT = 1370
 
--- Use mGBA's script.dir to determine paths
--- Remove the last two directory components (tools/porylive) to get project root
+-- Path variables
 local build_dir
 local bin_data_dir
 local generated_files_path
-local project_root = script.dir:match("(.*)/[^/]+/[^/]+/?$") or script.dir:match("(.*)[/\\][^/\\]+[/\\][^/\\]+[/\\]?$")
-if not project_root then
-  project_root = script.dir .. "/../../"  -- Fallback to original method
-else
-  project_root = project_root .. "/"
-end
 
-local status, result = pcall(function()
-  return dofile(project_root .. "build/porylive_config.lua")
-end)
-if status and type(result) == "table" then
-  build_dir = project_root .. result.current_build_dir
-end
-bin_data_dir = build_dir .. "/bin/data"
-generated_files_path = build_dir .. "/porylive_generated_files.lua"
+-- Function to set up project paths based on project root
+function setup_project_paths(project_root)
+  -- Ensure project_root ends with a slash
+  if not project_root:match("/$") then
+    project_root = project_root .. "/"
+  end
+  
+  local status, result = pcall(function()
+    return dofile(project_root .. "build/porylive_config.lua")
+  end)
+  if status and type(result) == "table" then
+    build_dir = project_root .. result.current_build_dir
+  else
+    console:error("[-] Failed to setup project paths")
+    return false
+  end
+  bin_data_dir = build_dir .. "/bin/data"
+  generated_files_path = build_dir .. "/porylive_generated_files.lua"
+  
+  console:log("[+] Project paths set up:")
+  console:log("    Project root: " .. project_root)
+  console:log("    Build dir: " .. result.current_build_dir)
+  
+  -- Load addresses from the build directory
+  local status, result = pcall(function()
+    return dofile(build_dir .. "/addresses.lua")
+  end)
+  if status and type(result) == "table" then
+    SCRIPT_INITIALIZED = result.gPoryLiveScriptInitialized
+    SCRIPT_OVERRIDES = result.gPoryLiveOverrides
+    SCRIPT_BUFFER = result.gPoryLiveScriptBuffer
+    console:log("[+] Addresses loaded successfully")
+  else
+    console:error("[-] Failed to load Porylive utility addresses. Please run `make live` to generate the addresses.lua file.")
+    return false
+  end
 
-local status, result = pcall(function()
-  return dofile(build_dir .. "/addresses.lua")
-end)
-if status and type(result) == "table" then
-  SCRIPT_INITIALIZED = result.gPoryLiveScriptInitialized
-  SCRIPT_OVERRIDES = result.gPoryLiveOverrides
-  SCRIPT_BUFFER = result.gPoryLiveScriptBuffer
-else
-  console:error("[-] Failed to load Porylive utility addresses. Please run `make live` to generate the addresses.lua file.")
-  return
+  return true
 end
 
 local script_overrides_map = {}
@@ -391,16 +403,36 @@ end
 console:log("======== Porylive initialized ========")
 console:log("Make sure to run `make live` in your decomp project to start live script editing.\n")
 
-if emu == nil then
-  console:log("[-] Please load your GBA ROM to before using Porylive")
-else
-  reload()
+
+-- Start Porylive
+function start_porylive(path_to_project)
+  if path_to_project == nil then
+    console:error("[-] No path to project provided")
+    return
+  end
+  local success = setup_project_paths(path_to_project)
+  if not success then
+    console:error("[-] Failed to setup project paths")
+    return
+  end
+  if emu == nil then
+    console:log("[-] Please load your GBA ROM to before using Porylive")
+  else
+    reload()
+  end
+  init_socket_server()
+end
+
+-- Use mGBA's script.dir to determine paths
+-- Remove the last two directory components (tools/porylive) to get project root
+local auto_project_root = script.dir:match("(.*)/[^/]+/[^/]+/?$") or script.dir:match("(.*)[/\\][^/\\]+[/\\][^/\\]+[/\\]?$")
+if not auto_project_root then
+  auto_project_root = script.dir .. "/../../"
 end
 
 callbacks:add("reset", reload)
 
--- Initialize socket server to listen for updates
-init_socket_server()
+start_porylive(auto_project_root)
 
 -- emu:setWatchpoint(handle_script_override, SCRIPT_WAITING, C.WATCHPOINT_TYPE.WRITE)
 -- callbacks:add("frame", handle_script_override)
