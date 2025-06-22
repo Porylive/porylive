@@ -1,6 +1,6 @@
 import re
 import sys
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Union
 from .logger import Logger
 from .config import ConfigManager
 from .map_file import MapFileManager
@@ -16,9 +16,62 @@ class MacroProcessor:
         self.map_file_manager = map_file_manager
         self.conditional_processor = ConditionalProcessor(logger)
 
+    def _find_matching_macro(self, script_name: str, macros_to_adjust: Dict[str, Any]) -> Any:
+        """Find a macro definition that matches the script name, supporting both exact matches and regex patterns
+
+        Returns:
+            The macro_info if found, None otherwise
+        """
+        # First try exact match
+        if script_name in macros_to_adjust:
+            return macros_to_adjust[script_name]
+
+        # Then try regex patterns (indicated by $() syntax)
+        for macro_key, macro_info in macros_to_adjust.items():
+            if macro_key.startswith("$(") and macro_key.endswith(")"):
+                # Extract the regex pattern (remove $( and ))
+                pattern = macro_key[2:-1]
+                try:
+                    if re.match(pattern, script_name):
+                        return macro_info
+                except re.error as e:
+                    self.logger.log_message(f"[_find_matching_macro] Invalid regex pattern '{pattern}': {e}")
+                    continue
+
+        return None
+
+    def _resolve_arg_reference(self, value: Union[str, Any], script: ScriptParams) -> Any:
+        """Resolve $arg[n] references in macro definitions"""
+        if not isinstance(value, str):
+            return value
+
+        # Check for $arg[n] pattern
+        arg_match = re.match(r'^\$arg\[(\d+)\]$', value)
+        if arg_match:
+            arg_index = int(arg_match.group(1))
+            if arg_index < len(script["params"]):
+                return script["params"][arg_index]
+            else:
+                self.logger.log_message(f"[_resolve_arg_reference] Argument index {arg_index} out of range for {script['name']}")
+                return value
+
+        return value
+
+    def _resolve_macro_params(self, params: List[Any], script: ScriptParams) -> List[Any]:
+        """Resolve $arg[n] references in macro parameter list"""
+        resolved_params = []
+        for param in params:
+            resolved_params.append(self._resolve_arg_reference(param, script))
+        return resolved_params
+
     def adjust_data_from_macro(self, routines: Dict[str, RoutineData], script: ScriptParams,
-                               src_file: str, new_script_labels: set, new_script_globals: set) -> Tuple[bytearray, List[LuaAdjustment]]:
-        """Adjust script data based on macro definitions"""
+                               src_file: str, new_script_labels: set, new_script_globals: set,
+                               base_offset: int = 0) -> Tuple[bytearray, List[LuaAdjustment]]:
+        """Adjust script data based on macro definitions
+
+        Args:
+            base_offset: Accumulated offset from parent macro calls
+        """
 
         def adjust_by_address(script: ScriptParams, info: Dict[str, Any], lua_adjustments: List[LuaAdjustment]):
             """Adjust script data by address lookup"""
@@ -34,12 +87,13 @@ class MacroProcessor:
             if address is not None:
                 if "add" in info:
                     address += info["add"]
-                script["data"][info["offset"]:info["offset"]+4] = address.to_bytes(4, "little")
+                actual_offset = info["offset"] + base_offset
+                script["data"][actual_offset:actual_offset+4] = address.to_bytes(4, "little")
             elif _name in new_script_labels or _name in new_script_globals:
                 # Needs to be adjusted in Lua
                 lua_adjustments.append({
                     "label": _name,
-                    "offset": info["offset"],
+                    "offset": info["offset"] + base_offset,
                     "address_offset": 0,
                 })
             else:
@@ -63,7 +117,7 @@ class MacroProcessor:
                                 # Needs to be adjusted in Lua
                                 lua_adjustments.append({
                                     "label": label,
-                                    "offset": info["offset"],
+                                    "offset": info["offset"] + base_offset,
                                     "address_offset": child_label["offset"],
                                 })
                                 found = True
@@ -71,7 +125,8 @@ class MacroProcessor:
                             # Replace 32 bits starting at info["offset"] with the address from the map file of label + child_label["offset"]
                             address = self.map_file_manager.get_map_file_address(label)
                             if address is not None:
-                                script["data"][info["offset"]:info["offset"]+4] = (address + child_label["offset"]).to_bytes(4, "little")
+                                actual_offset = info["offset"] + base_offset
+                                script["data"][actual_offset:actual_offset+4] = (address + child_label["offset"]).to_bytes(4, "little")
                                 found = True
                                 break
                     if found:
@@ -82,7 +137,10 @@ class MacroProcessor:
                 sys.exit(1)
 
         macros_to_adjust = self.config_manager.get_macros_to_adjust(src_file)
-        macro_info = macros_to_adjust.get(script["name"])
+
+        # Find matching macro (exact or regex)
+        macro_info = self._find_matching_macro(script["name"], macros_to_adjust)
+
         lua_adjustments: List[LuaAdjustment] = []
 
         if not macro_info:
@@ -103,12 +161,26 @@ class MacroProcessor:
         # Process all adjustments
         for info in adjustments:
             if info["type"] == "macro":
-                params = [0] * info["param_len"] if "param_len" in info else info["params"]
+                # Resolve macro name from $arg[n] if necessary
+                macro_name = self._resolve_arg_reference(info["name"], script)
+
+                # Resolve macro parameters from $arg[n] references
+                if "param_len" in info:
+                    params = [0] * info["param_len"]
+                else:
+                    params = self._resolve_macro_params(info["params"], script)
+
+                # Get the offset for this macro and add it to the accumulated base_offset
+                macro_offset = info.get("offset", 0)
+                accumulated_offset = base_offset + macro_offset
+
+                # Recursively process the macro with the accumulated offset
                 script["data"], _lua_adjustments = self.adjust_data_from_macro(routines, {
-                    "name": info["name"],
+                    "name": macro_name,
                     "params": params,
                     "data": script["data"],
-                }, src_file, new_script_labels, new_script_globals)
+                }, src_file, new_script_labels, new_script_globals, accumulated_offset)
+
                 lua_adjustments.extend(_lua_adjustments)
             elif "index" in info.keys() and info["index"] >= len(script["params"]):
                 continue
@@ -120,7 +192,8 @@ class MacroProcessor:
                 adjust_by_offset(script, info, lua_adjustments)
             elif info["type"] == "dynamic":
                 # Check if the 4 bytes to overwrite are all 0
-                if script["data"][info["offset"]:info["offset"]+4] == b"\x00\x00\x00\x00":
+                actual_offset = info["offset"] + base_offset
+                if script["data"][actual_offset:actual_offset+4] == b"\x00\x00\x00\x00":
                     # Replace with the address of the script
                     adjust_by_address(script, info, lua_adjustments)
                 else:
