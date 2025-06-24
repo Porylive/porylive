@@ -208,11 +208,12 @@ class ScriptDiffer:
                         current_script_params.update(",".join(_script[1:]).split(","))
 
             if action in ('added', 'removed'):
+                line_parts = line.split()
                 if action == 'added' and ".global" in line:
                     self.new_script_globals.add(line.lstrip(".global").strip().split()[0])
                 elif action == 'added' and ":" in line:
                     self.new_script_labels.add(line.rstrip(":").lstrip())
-                elif current_label not in updated_scripts and line.split() and len(line.split()) > 1 and line.split()[1] != ".align":
+                elif current_label not in updated_scripts and (len(line_parts) == 1 or (len(line_parts) > 1 and line_parts[1] != ".align")):
                     updated_scripts.add(current_label)
 
         # Check if any of the updated_script_params are in other_labels_in_file

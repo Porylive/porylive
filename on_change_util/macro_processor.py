@@ -66,11 +66,12 @@ class MacroProcessor:
 
     def adjust_data_from_macro(self, routines: Dict[str, RoutineData], script: ScriptParams,
                                src_file: str, new_script_labels: set, new_script_globals: set,
-                               base_offset: int = 0) -> Tuple[bytearray, List[LuaAdjustment]]:
+                               updated_scripts: set, base_offset: int = 0) -> Tuple[bytearray, List[LuaAdjustment]]:
         """Adjust script data based on macro definitions
 
         Args:
             base_offset: Accumulated offset from parent macro calls
+            updated_scripts: Set of script labels that have been updated
         """
 
         def adjust_by_address(script: ScriptParams, info: Dict[str, Any], lua_adjustments: List[LuaAdjustment]):
@@ -113,7 +114,8 @@ class MacroProcessor:
                 if routine["child_labels"]:
                     for child_label in routine["child_labels"]:
                         if child_label["name"] == _name:
-                            if child_label["name"] in new_script_labels:
+                            # Check if child label is new OR if parent routine has been updated
+                            if child_label["name"] in new_script_labels or label in updated_scripts:
                                 # Needs to be adjusted in Lua
                                 lua_adjustments.append({
                                     "label": label,
@@ -179,7 +181,7 @@ class MacroProcessor:
                     "name": macro_name,
                     "params": params,
                     "data": script["data"],
-                }, src_file, new_script_labels, new_script_globals, accumulated_offset)
+                }, src_file, new_script_labels, new_script_globals, updated_scripts, accumulated_offset)
 
                 lua_adjustments.extend(_lua_adjustments)
             elif "index" in info.keys() and info["index"] >= len(script["params"]):

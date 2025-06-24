@@ -140,7 +140,7 @@ class LSTParser:
             for script in routine["scripts"]:
                 if needs_macro_adjustment:
                     script_data, _lua_adjustments = self.macro_processor.adjust_data_from_macro(
-                        routines, script, src_file, new_script_labels, new_script_globals)
+                        routines, script, src_file, new_script_labels, new_script_globals, updated_scripts)
                     for adjustment in _lua_adjustments:
                         adjustment["offset"] += len(data)
                         lua_adjustments.append(adjustment)
