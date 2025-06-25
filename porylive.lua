@@ -472,8 +472,6 @@ function start_porylive(path_to_project)
   end
   if emu == nil then
     console:log("[-] Please load your GBA ROM to before using Porylive")
-  else
-    reload()
   end
   init_socket_server()
 end
