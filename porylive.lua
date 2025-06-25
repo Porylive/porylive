@@ -5,6 +5,9 @@ local SCRIPT_BUFFER        -- gPoryLiveScriptBuffer
 local SCRIPT_OVERRIDES_SIZE = 200
 local SCRIPT_BUFFER_SIZE = 102400 -- 100kb buffer
 
+-- OS variables
+local is_windows = false
+
 -- Socket server variables
 local server = nil
 local sockets = {}
@@ -15,6 +18,23 @@ local LISTEN_PORT = 1370
 local build_dir
 local bin_data_dir
 local generated_files_path
+
+-- Function to convert WSL path to Windows path
+function convert_wsl_path_to_windows(path)
+  if not is_windows then
+    return path  -- No conversion needed on non-Windows systems
+  end
+
+  -- Check if this is a WSL path (starts with /mnt/)
+  local drive_letter, rest_of_path = path:match("^/mnt/([a-zA-Z])/(.*)$")
+  if drive_letter and rest_of_path then
+    -- Convert /mnt/c/... to C:\...
+    local windows_path = drive_letter:upper() .. ":/" .. rest_of_path
+    return windows_path
+  end
+
+  return path  -- Return original path if not a WSL path
+end
 
 -- Function to set up project paths based on project root
 function setup_project_paths(project_root)
@@ -93,6 +113,9 @@ function reload()
 
   console:log("[+] Successfully loaded " .. #file_list .. " file entries")
 
+  -- Create child_label_overrides table for easy lookup
+  local child_label_overrides = {}
+
   -- Steps:
   -- 1. Find all files in the data build directory, recursively checking subdirectories
   -- 2. For each filename (format label-address.bin), read the file and get the label and address
@@ -105,13 +128,14 @@ function reload()
     local files = {}
     
     for _, file_entry in ipairs(file_list) do
+      local original_filename = convert_wsl_path_to_windows(file_entry.filename)
       -- Verify the file exists
-      local test_file = io.open(file_entry.filename, "rb")
+      local test_file = io.open(original_filename, "rb")
       if test_file then
         test_file:close()
-        table.insert(files, file_entry.filename)
+        table.insert(files, original_filename)
       else
-        console:error("[-] File not found: " .. file_entry.filename)
+        console:error("[-] File not found: " .. original_filename)
       end
     end
     
@@ -162,6 +186,20 @@ function reload()
           is_new_script = (address == 0),  -- Mark if this is a new script (address 0)
           original_address = address  -- Store original address for reference
         }
+
+        -- Check if this file has child labels in the file_list
+        for _, file_entry in ipairs(file_list) do
+          if file_entry.filename == file_path and file_entry.child_labels then
+            child_label_overrides[map_key] = {}
+            for _, child_label in ipairs(file_entry.child_labels) do
+              table.insert(child_label_overrides[map_key], {
+                address_offset = child_label.address_offset,
+                label = child_label.label
+              })
+            end
+            break
+          end
+        end
         
         -- Check if this file has lua_adjustments in the file_list
         for _, file_entry in ipairs(file_list) do
@@ -290,6 +328,19 @@ function reload()
     write_script_override(override_index, key, buffer_address)
     -- console:log("  0x" .. map_key .. " -> 0x" .. string.format("%x", buffer_address))
     override_index = override_index + 1
+
+    -- Check if this script has child labels
+    if child_label_overrides[map_key] then
+      for _, child_label in ipairs(child_label_overrides[map_key]) do
+        -- Calculate child label address
+        local child_address = buffer_address + child_label.address_offset
+        -- Write override entry for the child label
+        -- Use the original parent address + child offset as the key
+        write_script_override(override_index, key + child_label.address_offset, child_address)
+        console:log("  0x" .. string.format("%x", key + child_label.address_offset) .. " -> 0x" .. string.format("%x", child_address))
+        override_index = override_index + 1
+      end
+    end
   end
 
   emu:write32(SCRIPT_INITIALIZED, 1)
@@ -410,6 +461,10 @@ function start_porylive(path_to_project)
     console:error("[-] No path to project provided")
     return
   end
+
+  -- Detect if we're running on Windows
+  is_windows = path_to_project:match("^[a-zA-Z]:/") ~= nil
+
   local success = setup_project_paths(path_to_project)
   if not success then
     console:error("[-] Failed to setup project paths")

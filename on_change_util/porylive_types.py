@@ -32,6 +32,7 @@ class GeneratedFileInfo(TypedDict):
     address: int
     filename: str
     lua_adjustments: List[LuaAdjustment]
+    child_labels: List[ChildLabel]
 
 # Constants
 SECTION_PATTERN = re.compile(r'\.section script_data,"aw",%progbits')
