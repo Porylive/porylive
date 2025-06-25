@@ -337,7 +337,7 @@ function reload()
         -- Write override entry for the child label
         -- Use the original parent address + child offset as the key
         write_script_override(override_index, key + child_label.address_offset, child_address)
-        console:log("  0x" .. string.format("%x", key + child_label.address_offset) .. " -> 0x" .. string.format("%x", child_address))
+        -- console:log("  0x" .. string.format("%x", key + child_label.address_offset) .. " -> 0x" .. string.format("%x", child_address))
         override_index = override_index + 1
       end
     end
