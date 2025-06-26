@@ -99,6 +99,9 @@ function reload()
   for i = 0, (SCRIPT_BUFFER_SIZE / 4) - 1 do
     emu.memory.cart0:write32(SCRIPT_BUFFER + i , 0)
   end
+  for i = 0, (SCRIPT_OVERRIDES_SIZE / 4) - 1 do
+    emu:write32(SCRIPT_OVERRIDES + i * 8, 0)
+  end
 
   -- Load the generated files list from script directory
   local status, file_list = pcall(function()
