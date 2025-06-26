@@ -113,9 +113,6 @@ function reload()
 
   console:log("[+] Successfully loaded " .. #file_list .. " file entries")
 
-  -- Create child_label_overrides table for easy lookup
-  local child_label_overrides = {}
-
   -- Steps:
   -- 1. Find all files in the data build directory, recursively checking subdirectories
   -- 2. For each filename (format label-address.bin), read the file and get the label and address
@@ -187,20 +184,6 @@ function reload()
           original_address = address  -- Store original address for reference
         }
 
-        -- Check if this file has child labels in the file_list
-        for _, file_entry in ipairs(file_list) do
-          if file_entry.filename == file_path and file_entry.child_labels then
-            child_label_overrides[map_key] = {}
-            for _, child_label in ipairs(file_entry.child_labels) do
-              table.insert(child_label_overrides[map_key], {
-                address_offset = child_label.address_offset,
-                label = child_label.label
-              })
-            end
-            break
-          end
-        end
-        
         -- Check if this file has lua_adjustments in the file_list
         for _, file_entry in ipairs(file_list) do
           if file_entry.filename == file_path and file_entry.lua_adjustments then
@@ -328,19 +311,6 @@ function reload()
     write_script_override(override_index, key, buffer_address)
     -- console:log("  0x" .. map_key .. " -> 0x" .. string.format("%x", buffer_address))
     override_index = override_index + 1
-
-    -- Check if this script has child labels
-    if child_label_overrides[map_key] then
-      for _, child_label in ipairs(child_label_overrides[map_key]) do
-        -- Calculate child label address
-        local child_address = buffer_address + child_label.address_offset
-        -- Write override entry for the child label
-        -- Use the original parent address + child offset as the key
-        write_script_override(override_index, key + child_label.address_offset, child_address)
-        -- console:log("  0x" .. string.format("%x", key + child_label.address_offset) .. " -> 0x" .. string.format("%x", child_address))
-        override_index = override_index + 1
-      end
-    end
   end
 
   emu:write32(SCRIPT_INITIALIZED, 1)

@@ -65,7 +65,6 @@ class FileManager:
                 'address': data['original_address'],
                 'filename': str(output_path),
                 'lua_adjustments': data['lua_adjustments'],
-                'child_labels': data['child_labels'],
             })
 
         file_write_end = time.perf_counter()
@@ -101,14 +100,6 @@ class FileManager:
                             f.write(f"        label = \"{adjustment['label']}\",\n")
                             f.write(f"        offset = {adjustment['offset']},\n")
                             f.write(f"        address_offset = {adjustment['address_offset']},\n")
-                            f.write(f"      }},\n")
-                        f.write(f"    }},\n")
-                    if 'child_labels' in file_info.keys() and file_info['child_labels']:
-                        f.write("    child_labels = {\n")
-                        for child_label in file_info['child_labels']:
-                            f.write(f"      {{\n")
-                            f.write(f"        label = \"{child_label['name']}\",\n")
-                            f.write(f"        address_offset = {child_label['offset']},\n")
                             f.write(f"      }},\n")
                         f.write(f"    }},\n")
                     f.write(f"  }},\n")

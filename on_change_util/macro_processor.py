@@ -65,8 +65,8 @@ class MacroProcessor:
         return resolved_params
 
     def adjust_data_from_macro(self, routines: Dict[str, RoutineData], script: ScriptParams,
-                               src_file: str, new_script_labels: set, new_script_globals: set,
-                               updated_scripts: set, base_offset: int = 0) -> Tuple[bytearray, List[LuaAdjustment]]:
+                               src_file: str, new_script_labels: set, updated_scripts: set,
+                               base_offset: int = 0) -> Tuple[bytearray, List[LuaAdjustment]]:
         """Adjust script data based on macro definitions
 
         Args:
@@ -84,13 +84,13 @@ class MacroProcessor:
             if _name.startswith("0x"):
                 return script["data"], []
 
-            address = self.map_file_manager.get_map_file_address(_name)
+            address = self.map_file_manager.get_sym_file_address(_name)
             if address is not None:
                 if "add" in info:
                     address += info["add"]
                 actual_offset = info["offset"] + base_offset
                 script["data"][actual_offset:actual_offset+4] = address.to_bytes(4, "little")
-            elif _name in new_script_labels or _name in new_script_globals:
+            elif _name in new_script_labels:
                 # Needs to be adjusted in Lua
                 lua_adjustments.append({
                     "label": _name,
@@ -109,34 +109,37 @@ class MacroProcessor:
             if _name.startswith("0x"):
                 return script["data"], []
 
-            found = False
-            for label, routine in routines.items():
-                if routine["child_labels"]:
-                    for child_label in routine["child_labels"]:
-                        if child_label["name"] == _name:
-                            # Check if child label is new OR if parent routine has been updated
-                            if child_label["name"] in new_script_labels or label in updated_scripts:
-                                # Needs to be adjusted in Lua
-                                lua_adjustments.append({
-                                    "label": label,
-                                    "offset": info["offset"] + base_offset,
-                                    "address_offset": child_label["offset"],
-                                })
-                                found = True
-                                break
-                            # Replace 32 bits starting at info["offset"] with the address from the map file of label + child_label["offset"]
-                            address = self.map_file_manager.get_map_file_address(label)
-                            if address is not None:
-                                actual_offset = info["offset"] + base_offset
-                                script["data"][actual_offset:actual_offset+4] = (address + child_label["offset"]).to_bytes(4, "little")
-                                found = True
-                                break
-                    if found:
-                        break
-            if not found:
-                # Exit with error
-                self.logger.log_message(f"[offset] Unknown symbol for {script['name']}: {script['params'][info['index']]}")
-                sys.exit(1)
+            if _name in routines.keys():
+                # Check if label is new OR has been updated
+                if _name in new_script_labels or _name in updated_scripts:
+                    # Needs to be adjusted in Lua
+                    lua_adjustments.append({
+                        "label": _name,
+                        "offset": info["offset"] + base_offset,
+                        "address_offset": 0,
+                    })
+                else:
+                    # Get the address directly from the child script
+                    address = routines[_name].get('original_address')
+                    if address is not None:
+                        actual_offset = info["offset"] + base_offset
+                        script["data"][actual_offset:actual_offset+4] = address.to_bytes(4, "little")
+                    else:
+                        # Exit with error
+                        self.logger.log_message(f"[offset] No address found for script: {_name}")
+                        sys.exit(1)
+            else:
+                # Check if _name exists in map file before erroring
+                address = self.map_file_manager.get_sym_file_address(_name)
+                if address is not None:
+                    if "add" in info:
+                        address += info["add"]
+                    actual_offset = info["offset"] + base_offset
+                    script["data"][actual_offset:actual_offset+4] = address.to_bytes(4, "little")
+                else:
+                    # Exit with error
+                    self.logger.log_message(f"[offset] Unknown symbol for {script['name']}: {_name}")
+                    sys.exit(1)
 
         macros_to_adjust = self.config_manager.get_macros_to_adjust(src_file)
 
@@ -181,7 +184,7 @@ class MacroProcessor:
                     "name": macro_name,
                     "params": params,
                     "data": script["data"],
-                }, src_file, new_script_labels, new_script_globals, updated_scripts, accumulated_offset)
+                }, src_file, new_script_labels, updated_scripts, accumulated_offset)
 
                 lua_adjustments.extend(_lua_adjustments)
             elif "index" in info.keys() and info["index"] >= len(script["params"]):
@@ -190,7 +193,7 @@ class MacroProcessor:
                 # Replace 32 bits starting at info["offset"] with the address from the map file
                 adjust_by_address(script, info, lua_adjustments)
             elif info["type"] == "offset":
-                # Find a routine with a child label that matches script["params"][info["index"]]
+                # Find the script directly in routines
                 adjust_by_offset(script, info, lua_adjustments)
             elif info["type"] == "dynamic":
                 # Check if the 4 bytes to overwrite are all 0

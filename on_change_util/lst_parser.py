@@ -14,23 +14,18 @@ class LSTParser:
         self.macro_processor = macro_processor
 
     def parse_lst(self, lst_path: Path, updated_scripts: Set[str], src_file: str,
-                  needs_macro_adjustment: bool, new_script_globals: Set[str],
-                  used_global_labels: Set[str], new_script_labels: Set[str]) -> Dict[str, RoutineData]:
+                  needs_macro_adjustment: bool, used_global_labels: Set[str],
+                  new_script_labels: Set[str]) -> Dict[str, RoutineData]:
         """Parse LST file and extract routine data"""
         routines = {}
-        current_script = {
-            "label": "",
-            "offset": 0,
-            "scripts": [],
-            "child_labels": [],
-        }
+        current_script = None
+
         started_parsing = False
         found_label = False  # Flag to track if we just found a label
-        current_child_label = None  # Name of the child label we just found
         is_updated = False
 
         # All scripts that need to be processed
-        scripts_to_process = new_script_globals.union(used_global_labels).union(updated_scripts)
+        scripts_to_process = new_script_labels.union(used_global_labels).union(updated_scripts)
 
         with open(lst_path) as f:
             for line in f:
@@ -53,36 +48,31 @@ class LSTParser:
 
                 # Check for label line - it will have a colon and start with spaces followed by a number
                 if ':' in line and line.lstrip().split()[0].isdigit():
-                    if '; .global' in line:
-                        # Extract label name - it's the part before the colon, after the number
-                        _label = line.split(':')[0].split()[-1]
+                    # Extract label name - it's the part before the colon, after the number
+                    _label = line.split(':')[0].split()[-1]
 
-                        if current_script["label"] and current_script["label"] in scripts_to_process:
-                            # Store both the hex data and the starting offset
-                            routines[current_script["label"]] = {
-                                'scripts': current_script["scripts"],
-                                'starting_offset': current_script["offset"],
-                                'child_labels': current_script["child_labels"],
-                                'original_address': self.map_file_manager.get_map_file_address(current_script["label"]),
-                            }
+                    # Store the previous script if it exists and needs processing
+                    if current_script and current_script["label"] in scripts_to_process:
+                        routines[current_script["label"]] = {
+                            'scripts': current_script["scripts"],
+                            'starting_offset': current_script["offset"],
+                            'original_address': self.map_file_manager.get_sym_file_address(current_script["label"]),
+                        }
 
-                        if _label not in scripts_to_process:
-                            current_script["label"] = None
-                            continue
-
-                        current_script["label"] = _label  # Last part before the colon
-                        current_script["scripts"] = []
-                        current_script["child_labels"] = []
-                        found_label = True  # Set flag that we found a label
-                        if _label in updated_scripts:
-                            current_script["data"] = bytearray()  # Reset to empty bytearray
-                            is_updated = True
-                        else:
-                            current_script["data"] = None
-                            is_updated = False
-                    elif current_script["label"]:
-                        current_child_label = line.split(':')[0].split()[1]
-                elif current_script["label"] and line:
+                    # Start new script
+                    current_script = {
+                        "label": _label,
+                        "scripts": [],
+                        "offset": 0,
+                    }
+                    found_label = True  # Set flag that we found a label
+                    if _label in updated_scripts:
+                        current_script["data"] = bytearray()  # Reset to empty bytearray
+                        is_updated = True
+                    else:
+                        current_script["data"] = None
+                        is_updated = False
+                elif current_script and line:
                     if not needs_macro_adjustment and not is_updated:
                         continue
                     parts = line.split(';')[0].split()
@@ -102,33 +92,22 @@ class LSTParser:
                             except ValueError:
                                 continue
                             found_label = False  # Reset the flag
-                        elif current_child_label:
-                            try:
-                                _offset = int(parts[1], 16) - current_script["offset"]
-                            except ValueError:
-                                continue
-                            current_script["child_labels"].append({
-                                "name": current_child_label,
-                                "offset": _offset,
-                            })
-                            current_child_label = None
-                        if not is_updated:
-                            continue
                         # For lines with 2 parts, hex data is in part 2
                         # For lines with 3+ parts, hex data is in part 3
                         hex_data = parts[2] if len(parts) >= 3 else parts[1]
                         # Only add if it contains valid hex characters
-                        if all(c in "0123456789abcdef" for c in hex_data.lower()):
+                        if all(c in "0123456789abcdef" for c in hex_data.lower()) and current_script["scripts"]:
                             # Convert hex pairs to bytes and add to current script's data
                             for i in range(0, len(hex_data), 2):
                                 byte_value = int(hex_data[i:i+2], 16)
                                 current_script["scripts"][-1]["data"].append(byte_value)
 
-        if current_script["label"]:
+        # Store the final script if it exists
+        if current_script and current_script["label"] in scripts_to_process:
             routines[current_script["label"]] = {
                 'starting_offset': current_script["offset"],
                 'scripts': current_script["scripts"],
-                'child_labels': current_script["child_labels"],
+                'original_address': self.map_file_manager.get_sym_file_address(current_script["label"]),
             }
 
         # Process routines to adjust data from macros
@@ -140,7 +119,7 @@ class LSTParser:
             for script in routine["scripts"]:
                 if needs_macro_adjustment:
                     script_data, _lua_adjustments = self.macro_processor.adjust_data_from_macro(
-                        routines, script, src_file, new_script_labels, new_script_globals, updated_scripts)
+                        routines, script, src_file, new_script_labels, updated_scripts)
                     for adjustment in _lua_adjustments:
                         adjustment["offset"] += len(data)
                         lua_adjustments.append(adjustment)

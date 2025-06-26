@@ -7,14 +7,9 @@ class ScriptParams(TypedDict):
     params: List[str]
     data: bytearray
 
-class ChildLabel(TypedDict):
-    name: str
-    offset: int
-
 class RoutineData(TypedDict):
     scripts: List[ScriptParams]
     starting_offset: int
-    child_labels: List[ChildLabel]
 
 class MacroAdjustmentInfo(TypedDict):
     index: int
@@ -32,7 +27,6 @@ class GeneratedFileInfo(TypedDict):
     address: int
     filename: str
     lua_adjustments: List[LuaAdjustment]
-    child_labels: List[ChildLabel]
 
 # Constants
 SECTION_PATTERN = re.compile(r'\.section script_data,"aw",%progbits')
@@ -46,7 +40,5 @@ SUPPORTED_FILES = [
 # Global state types (these will be managed by appropriate classes)
 GlobalState = TypedDict('GlobalState', {
     'new_script_labels': Set[str],
-    'new_script_globals': Set[str],
-    'used_global_labels': Set[str],
-    'child_to_label_map': Dict[str, str]
+    'used_global_labels': Set[str]
 })

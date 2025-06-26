@@ -78,7 +78,7 @@ class PoryliveProcessor:
             return True
 
         # Load map file
-        self.map_file_manager.load_map_file()
+        self.map_file_manager.load_sym_file()
 
         # Determine which supported file to process
         selected_file = self.determine_selected_file(updated_file)
@@ -116,7 +116,7 @@ class PoryliveProcessor:
         global_state = self.script_differ.global_state
 
         if len(global_state['new_script_labels']) > 0:
-            self.logger.log_message(f"Found {len(updated_scripts) - len(global_state['new_script_globals'])} updated script(s) and {len(global_state['new_script_globals'])} new script(s)")
+            self.logger.log_message(f"Found {len(updated_scripts)} updated script(s) and {len(global_state['new_script_labels'])} new script(s)")
         else:
             self.logger.log_message(f"Found {len(updated_scripts)} updated script(s)")
 
@@ -129,7 +129,6 @@ class PoryliveProcessor:
                 updated_scripts,
                 selected_file,
                 needs_macro_adjustment,
-                global_state['new_script_globals'],
                 global_state['used_global_labels'],
                 global_state['new_script_labels']
             )

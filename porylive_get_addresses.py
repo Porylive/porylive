@@ -2,6 +2,7 @@
 import sys
 import re
 import os
+import subprocess
 
 def extract_and_write_lua(map_file_path, output_lua_path):
     """
@@ -16,35 +17,29 @@ def extract_and_write_lua(map_file_path, output_lua_path):
     symbols_found_count = 0
     found_addresses = {}
 
-    # Regex to find lines like: .sbss.<symbol_name> 0x<address> ... <object_file>
-    # or more simply: 0x<address> <symbol_name> (often found in the cross-reference section or symbol table listing)
-    # This regex looks for the address first, then the symbol name anchored by word boundaries.
-    symbol_regex_pattern = r"^\s*(0x[0-9a-fA-F]+)\s+.*\b({})\b".format('|'.join(symbols_to_find.keys()))
-    symbol_regex = re.compile(symbol_regex_pattern)
-
-    # Simpler direct match regex (address followed by symbol name)
-    direct_match_regex = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s+({})\s*$".format('|'.join(symbols_to_find.keys())))
+    # Regex to match .sym file format: <hex_address> <g|l> <size> <symbol_name>
+    # Example: 02031d0c g 00000004 gPoryLiveScriptInitialized
+    sym_regex = re.compile(r"^([0-9a-fA-F]+)\s+[gl]\s+[0-9a-fA-F]+\s+(.+)$")
 
 
     try:
         with open(map_file_path, 'r') as f:
             for line in f:
                 line = line.strip()
-                match = direct_match_regex.search(line)
-                if not match:
-                    match = symbol_regex.search(line) # Fallback to broader search
+                match = sym_regex.match(line)
 
                 if match:
-                    address = match.group(1)
-                    # Find which symbol matched
-                    symbol = next((s for s in symbols_to_find if s == match.group(2)), None)
+                    address_hex = match.group(1)
+                    symbol_name = match.group(2)
 
-                    if symbol and symbol not in found_addresses:
-                         found_addresses[symbol] = address
-                         symbols_found_count += 1
-                         # Optimization: stop if all symbols are found
-                         if symbols_found_count == len(symbols_to_find):
-                             break
+                    # Check if this symbol is one we're looking for
+                    if symbol_name in symbols_to_find and symbol_name not in found_addresses:
+                        # Add 0x prefix to match expected format
+                        found_addresses[symbol_name] = f"0x{address_hex}"
+                        symbols_found_count += 1
+                        # Optimization: stop if all symbols are found
+                        if symbols_found_count == len(symbols_to_find):
+                            break
 
     except FileNotFoundError:
         print(f"Error: Map file not found at {map_file_path}", file=sys.stderr)
@@ -92,6 +87,34 @@ if __name__ == "__main__":
 
     map_file = sys.argv[1]
     output_lua = sys.argv[2]
+
+    print(f"Generating {map_file.replace('.map', '.sym')}...")
+
+    # Run `PORYLIVE=1 make syms`, then replace the map file with the .sym file
+    # for backwards compatibility
+    env = os.environ.copy()
+    env["PORYLIVE"] = "1"
+    # Remove jobserver environment variables to avoid jobserver issues
+    env.pop("MAKEFLAGS", None)
+    env.pop("MFLAGS", None)
+    try:
+        result = subprocess.run(
+            ["make", "-j1", "syms"],  # Use -j1 to avoid parallel job issues
+            cwd=os.getcwd(),
+            env=env,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Failed to run `make syms`", file=sys.stderr)
+        if e.stderr:
+            print(e.stderr.decode("utf-8"), file=sys.stderr)
+        sys.exit(1)
+
+    map_file = map_file.replace(".map", ".sym")
+    if not os.path.exists(map_file):
+        print(f"Error: {map_file} does not exist", file=sys.stderr)
+        sys.exit(1)
 
     # Create a porylive_config.lua file the build directory
     project_dir = os.path.dirname(map_file)
