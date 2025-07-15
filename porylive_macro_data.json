@@ -749,6 +749,9 @@
     ],
     "getfollowerbattler": [
       { "type": "macro", "name": "callnative", "params": ["ScriptGetFollowerBattler", "1"] }
+    ],
+    "speakername": [
+      { "index": 0, "offset": 1, "type": "dynamic" }
     ]
   }
 }
