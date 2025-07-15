@@ -107,7 +107,7 @@ class LSTParser:
                         current_script["scripts"].append(script_entry)
 
                     # Skip subsequent hex column processing if the previous script (or just added script) is complete
-                    if current_script["scripts"][-1]["complete"]:
+                    if len(current_script["scripts"]) > 0 and current_script["scripts"][-1]["complete"]:
                         continue
 
                     if len(parts) >= 2:
