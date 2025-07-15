@@ -80,11 +80,36 @@ class LSTParser:
                         _name = parts[3]
                         _params_joined = ",".join(parts[4:])
                         _params = _params_joined.split(",") if len(parts) >= 5 else []
-                        current_script["scripts"].append({
+
+                        script_entry = {
                             "name": _name,
                             "params": _params,
                             "data": bytearray(),
-                        })
+                            "complete": False,
+                        }
+
+                        # Special handling for .byte instructions
+                        if _name == '.byte':
+                            # Parse comma-delimited hex values from the same line
+                            hex_values_str = _params_joined if _params_joined else ""
+                            if hex_values_str:
+                                hex_values = [val.strip() for val in hex_values_str.split(',')]
+                                for hex_val in hex_values:
+                                    if hex_val.startswith('0x'):
+                                        try:
+                                            byte_value = int(hex_val, 16)
+                                            script_entry["data"].append(byte_value)
+                                        except ValueError:
+                                            continue
+                            # Mark this script as complete to skip subsequent hex column processing
+                            script_entry["complete"] = True
+
+                        current_script["scripts"].append(script_entry)
+
+                    # Skip subsequent hex column processing if the previous script (or just added script) is complete
+                    if current_script["scripts"][-1]["complete"]:
+                        continue
+
                     if len(parts) >= 2:
                         if found_label:
                             try:
