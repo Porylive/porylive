@@ -131,31 +131,31 @@
         {
           "$value": 4,
           "$adjustments": [
-            { "index": 3, "offset": 6, "type": "dynamic" }
+            { "index": 3, "offset": 5, "type": "dynamic" }
           ]
         },
         {
           "$value": 5,
           "$adjustments": [
-            { "index": 3, "offset": 6, "type": "dynamic" },
-            { "index": 4, "offset": 10, "type": "dynamic" }
+            { "index": 3, "offset": 5, "type": "dynamic" },
+            { "index": 4, "offset": 9, "type": "dynamic" }
           ]
         },
         {
           "$value": 6,
           "$adjustments": [
-            { "index": 3, "offset": 6, "type": "dynamic" },
-            { "index": 4, "offset": 10, "type": "dynamic" },
-            { "index": 5, "offset": 14, "type": "dynamic" }
+            { "index": 3, "offset": 5, "type": "dynamic" },
+            { "index": 4, "offset": 9, "type": "dynamic" },
+            { "index": 5, "offset": 13, "type": "dynamic" }
           ]
         },
         {
           "$value": 7,
           "$adjustments": [
-            { "index": 3, "offset": 6, "type": "dynamic" },
-            { "index": 4, "offset": 10, "type": "dynamic" },
-            { "index": 5, "offset": 14, "type": "dynamic" },
-            { "index": 6, "offset": 18, "type": "dynamic" }
+            { "index": 3, "offset": 5, "type": "dynamic" },
+            { "index": 4, "offset": 9, "type": "dynamic" },
+            { "index": 5, "offset": 13, "type": "dynamic" },
+            { "index": 6, "offset": 17, "type": "dynamic" }
           ]
         }
       ]
@@ -174,10 +174,27 @@
         ]
       },
       "$true": [
-        { "type": "macro", "name": "trainerbattle", "param_len": 5 }
+        {
+          "type": "macro",
+          "name": "trainerbattle",
+          "params": {
+            "2": "$arg[0]",
+            "3": "$arg[1]",
+            "4": "$arg[2]"
+          }
+        }
       ],
       "$false": [
-        { "type": "macro", "name": "trainerbattle", "param_len": 6 }
+        {
+          "type": "macro",
+          "name": "trainerbattle",
+          "params": {
+            "2": "$arg[0]",
+            "3": "$arg[1]",
+            "4": "$arg[2]",
+            "5": "$arg[3]"
+          }
+        }
       ]
     },
     "trainerbattle_double": {
@@ -194,24 +211,75 @@
         ]
       },
       "$true": [
-        { "type": "macro", "name": "trainerbattle", "param_len": 5 }
+        {
+          "type": "macro",
+          "name": "trainerbattle",
+          "params": {
+            "2": "$arg[0]",
+            "3": "$arg[1]",
+            "4": "$arg[2]",
+            "12": "$arg[3]"
+          }
+        }
       ],
       "$false": [
-        { "type": "macro", "name": "trainerbattle", "param_len": 6 }
+        {
+          "type": "macro",
+          "name": "trainerbattle",
+          "params": {
+            "2": "$arg[0]",
+            "3": "$arg[1]",
+            "4": "$arg[2]",
+            "12": "$arg[3]",
+            "6": "$arg[4]"
+          }
+        }
       ]
     },
     "trainerbattle_rematch": [
-      { "type": "macro", "name": "trainerbattle", "param_len": 5 }
+      {
+        "type": "macro",
+        "name": "trainerbattle",
+        "params": {
+          "2": "$arg[0]",
+          "3": "$arg[1]",
+          "4": "$arg[2]"
+        }
+      }
     ],
     "trainerbattle_rematch_double": [
-      { "type": "macro", "name": "trainerbattle", "param_len": 6 }
+      {
+        "type": "macro",
+        "name": "trainerbattle",
+        "params": {
+          "2": "$arg[0]",
+          "3": "$arg[1]",
+          "4": "$arg[2]",
+          "12": "$arg[3]"
+        }
+      }
     ],
     "trainerbattle_no_intro": [
-      { "type": "macro", "name": "trainerbattle", "param_len": 4 }
+      {
+        "type": "macro",
+        "name": "trainerbattle",
+        "params": {
+          "2": "$arg[0]",
+          "4": "$arg[1]"
+        }
+      }
     ],
     "trainerbattle_two_trainers": [
-      { "index": 1, "offset": 4, "type": "dynamic" },
-      { "index": 3, "offset": 10, "type": "dynamic" }
+      {
+        "type": "macro",
+        "name": "trainerbattle",
+        "params": {
+          "2": "$arg[0]",
+          "4": "$arg[1]",
+          "7": "$arg[2]",
+          "9": "$arg[3]"
+        }
+      }
     ],
     "message": {
       "$if": {

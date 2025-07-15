@@ -64,6 +64,40 @@ class MacroProcessor:
             resolved_params.append(self._resolve_arg_reference(param, script))
         return resolved_params
 
+    def _resolve_macro_params_dict(self, params_dict: Dict[str, Any], script: ScriptParams) -> List[Any]:
+        """Resolve $arg[n] references in macro parameter dictionary format
+        
+        Args:
+            params_dict: Dictionary where keys are string indices and values are parameter values
+            script: The script context for resolving $arg[n] references
+            
+        Returns:
+            List of resolved parameters with 0s filling unspecified indices
+        """
+        # Find the maximum index to determine array size
+        max_index = 0
+        for key in params_dict.keys():
+            try:
+                index = int(key)
+                max_index = max(max_index, index)
+            except ValueError:
+                self.logger.log_message(f"[_resolve_macro_params_dict] Invalid index key: {key}")
+                continue
+        
+        # Create array filled with 0s
+        params = [0] * (max_index + 1)
+        
+        # Fill in the specified indices with resolved values
+        for key, value in params_dict.items():
+            try:
+                index = int(key)
+                params[index] = self._resolve_arg_reference(value, script)
+            except ValueError:
+                self.logger.log_message(f"[_resolve_macro_params_dict] Invalid index key: {key}")
+                continue
+        
+        return params
+
     def adjust_data_from_macro(self, routines: Dict[str, RoutineData], script: ScriptParams,
                                src_file: str, new_script_labels: set, updated_scripts: set,
                                base_offset: int = 0) -> Tuple[bytearray, List[LuaAdjustment]]:
@@ -172,6 +206,9 @@ class MacroProcessor:
                 # Resolve macro parameters from $arg[n] references
                 if "param_len" in info:
                     params = [0] * info["param_len"]
+                elif isinstance(info["params"], dict):
+                    # Handle dictionary-style params where keys are indices
+                    params = self._resolve_macro_params_dict(info["params"], script)
                 else:
                     params = self._resolve_macro_params(info["params"], script)
 
